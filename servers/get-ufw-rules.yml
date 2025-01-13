@@ -42,64 +42,28 @@
         msg: "Failed to parse JSON data or fetch URL. Check 'port_data' for details."
       when: ip_list is undefined or port_data.failed or port_data.status != 200
 
-    - name: Gather existing UFW rules
-      shell: ufw status numbered | awk 'NR>2 {print $0}'
-      register: current_ufw_rules
-      changed_when: false
-      when: ip_list is defined
+    - name: Ensure Ansible server IP is allowed
+      ufw:
+        rule: allow
+        src: "192.168.0.34"
+        comment: "Allow Ansible server"
 
-    - name: Extract rule details
-      set_fact:
-        ufw_rules_list: >-
-          {% set rules = [] %}
-          {% for line in current_ufw_rules.stdout_lines %}
-            {% set parts = line.split() %}
-            {% if parts|length >= 4 %}  # Ensure we have enough parts in the line
-              {% set rule = {
-                'num': parts[0]|replace("[","")|replace("]",""),
-                'to': parts[1],
-                'action': parts[2],
-                'from': parts[3],  # Ensure the 'from' field exists
-                'comment': parts[4:]|join(" ") if parts|length > 4 else ""
-              } %}
-              {{ rules.append(rule) }}
-            {% endif %}
-          {% endfor %}
-          {{ rules }}
-      when: ip_list is defined
-
-    - name: Debug ufw_rules_list
-      debug:
-        var: ufw_rules_list
-      when: ufw_rules_list is defined
-
-    - name: Set facts for rules to be deleted
-      set_fact:
-        rules_to_delete: >-
-          {% set delete_list = [] %}
-          {% for rule in ufw_rules_list %}
-            {% if rule.from not in ip_list | map(attribute='port') | list %}
-              {{ delete_list.append(rule) }}
-            {% endif %}
-          {% endfor %}
-          {{ delete_list }}
-      when: ip_list is defined
-
-    - name: Configure UFW rules
+    - name: Configure UFW rules from ip_list
       block:
-        - name: Add UFW rule
+        - name: Add UFW rules from the ip_list
           ufw:
             rule: allow
             src: "{{ item.port }}"
             comment: "{{ item.comment | default('Managed by Ansible') }}"
           loop: "{{ ip_list }}"
-          when:
-            - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*') | select | list
+          when: item.port != "192.168.0.34"
 
-        - name: Remove outdated UFW rules
+        - name: Remove existing UFW rules for IPs in the list not in JSON
           ufw:
             rule: delete
-            num: "{{ item.num }}"
+            src: "{{ item.port }}"
             state: absent
-          loop: "{{ rules_to_delete }}"
+          loop: "{{ ip_list }}"
+          when: item.port != "192.168.0.34"
+
       when: ip_list is defined
