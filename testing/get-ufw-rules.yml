@@ -51,7 +51,7 @@
               {{ rules.append(rule) or '' }}
             {% endif %}
           {% endfor %}
-          {{ rules | to_json }}
+          {{ rules }}
       when: ip_list is defined
 
     - name: Debug skipped lines
@@ -103,5 +103,8 @@
             rule: delete
             num: "{{ item.num }}"
             state: absent
-          loop: "{{ rules_to_delete }}"
+          loop: "{{ rules_to_delete | default([]) }}"
+          when: 
+            - rules_to_delete is defined
+            - rules_to_delete | length > 0
       when: ip_list is defined
