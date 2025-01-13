@@ -43,9 +43,10 @@
       when: ip_list is undefined or port_data.failed or port_data.status != 200
 
     - name: Gather existing UFW rules
-      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}'
+      shell: ufw status numbered | awk 'NR>2 {print $0}'
       register: current_ufw_rules
       changed_when: false
+      when: ip_list is defined
 
     - name: Extract rule details
       set_fact:
@@ -54,7 +55,7 @@
           {% for line in current_ufw_rules.stdout_lines %}
             {% set parts = line.split() %}
             {% if parts|length >= 3 %}
-              {% set rule = {'num': parts[0], 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4] if parts|length > 4 else None} %}
+              {% set rule = {'num': parts[0]|replace("[","")|replace("]",""), 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4:]|join(" ") if parts|length > 4 else ""} %}
               {{ rules.append(rule) }}
             {% endif %}
           {% endfor %}
@@ -66,7 +67,7 @@
         rules_to_delete: >-
           {% set delete_list = [] %}
           {% for rule in ufw_rules_list %}
-            {% if rule['from'] not in ip_list | map(attribute='port') | list %}
+            {% if rule.from not in ip_list | map(attribute='port') | list %}
               {{ delete_list.append(rule) }}
             {% endif %}
           {% endfor %}
