@@ -57,12 +57,12 @@
           {% set rules = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
             {% if line is match('^\\[\\s*\\d+\\]') %}
-              {% set parts = line.split() %}
-              {% set num = parts[0]|replace('[','')|replace(']','') %}
-              {% set action = parts[2] %}
-              {% set from = parts[4] %}
-              {% if parts|length >= 6 %}
-                {% set comment = parts[5:]|join(' ') %}
+              {% set num = line.split('[')[1].split(']')[0]|trim %}
+              {% set rest = line.split(']')[1]|trim %}
+              {% set action = rest.split()[0] %}
+              {% set from = rest.split()[2] %}
+              {% if '#' in rest %}
+                {% set comment = rest.split('#')[1]|trim %}
               {% else %}
                 {% set comment = '' %}
               {% endif %}
