@@ -33,7 +33,7 @@
 
     - name: Parse JSON data
       set_fact:
-        ip_list: "{{ port_data.content | from_json }}" # Rename port_list to ip_list
+        ip_list: "{{ port_data.content | from_json }}"
       when: port_data.content is defined and port_data.status == 200
       ignore_errors: true
 
@@ -43,7 +43,7 @@
       when: ip_list is undefined or port_data.failed or port_data.status != 200
 
     - name: Gather existing UFW rules
-      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}' # Update awk to match the output you provided
+      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}'
       register: current_ufw_rules
       changed_when: false
       when: ip_list is defined
@@ -67,9 +67,9 @@
         - name: Add UFW rule
           ufw:
             rule: allow
-            src: "{{ item.port }}"  # Use 'port' as the source IP
+            src: "{{ item.port }}"
             comment: "{{ item.comment | default('Managed by Ansible') }}"
-          loop: "{{ ip_list }}" # Use ip_list
+          loop: "{{ ip_list }}"
           when:
             - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*') | select | list
 
@@ -77,6 +77,7 @@
           ufw:
             rule: delete
             num: "{{ item.num }}"
+            state: absent
           loop: "{{ query('list', ufw_rules_list) }}"
-          when: ip_list | map(attribute='port') | select | list
+          when: item.from not in ip_list | map(attribute='port') | list
       when: ip_list is defined
