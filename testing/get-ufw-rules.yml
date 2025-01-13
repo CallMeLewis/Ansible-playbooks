@@ -22,20 +22,17 @@
         msg: "Failed to parse JSON data or fetch URL. Check 'ip_data' for details."
       when: ip_list is undefined or ip_data.failed or ip_data.status != 200
 
-    - name: Add UFW rules for allowed IPs
-      ufw:
-        rule: allow
-        src: "{{ item.port }}"
-        comment: "{{ item.comment | default('Managed by Ansible') }}"
-      loop: "{{ ip_list }}"
-      when: ip_list is defined
-
     - name: Ensure IP addresses are in the correct format for ufw.rules
       set_fact:
         ufw_rules_entries: >-
-          {{ ip_list | map(attribute='port') | list | map('regex_replace', '^(.*)$', '-A ufw-user-input -s \\1 -j ACCEPT') | list }}
+          {% set rules = [] %}
+          {% for item in ip_list %}
+            {{ rules.append('-A ufw-user-input -s ' ~ item.port ~ ' -j ACCEPT -m comment --comment "' ~ (item.comment | default('Managed by Ansible')) ~ '"') or '' }}
+          {% endfor %}
+          {{ rules }}
+      when: ip_list is defined
 
-    - name: Update ufw.rules file (remove outdated entries)
+    - name: Update ufw.rules file
       blockinfile:
         path: /etc/ufw/user.rules
         marker: "# {mark} ANSIBLE MANAGED BLOCK"
