@@ -62,7 +62,6 @@
           ufw:
             rule: delete
             src: "{{ item.port }}"
-            state: absent
           loop: "{{ ip_list }}"
           when: item.port != "192.168.0.34"
 
