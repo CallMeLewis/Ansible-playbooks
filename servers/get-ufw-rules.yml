@@ -75,7 +75,7 @@
           loop: "{{ port_list }}"
           when:
             - item.source is defined
-            - not current_ufw_rules.stdout_lines | map('regex_search', '.*\[ ' + item.port + ' \].*' + (item.source | default('')) + '.*') | list | any
+            - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*' + (item.source | default('')) + '.*') | select | list
 
         - name: Add UFW rule (without IP restrictions)
           ufw:
@@ -87,12 +87,12 @@
           loop: "{{ port_list }}"
           when:
             - item.source is not defined
-            - not current_ufw_rules.stdout_lines | map('regex_search', '.*\[ ' + item.port + ' \].*') | list | any
+            - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*') | select | list
 
         - name: Remove outdated UFW rules
           ufw:
             rule: delete
             num: "{{ item.num }}"
           loop: "{{ ufw_rules_list }}"
-          when: not port_list | map(attribute='port') | list | map('regex_search', '.*' + item.port + '.*') | list | any
+          when: not port_list | map(attribute='port') | select | list
       when: port_list is defined
