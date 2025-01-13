@@ -14,3 +14,12 @@
       reboot:
         connect_timeout: 5
         reboot_timeout: 300
+
+    - name: Send Discord notification
+      uri:
+        url: "https://discord.com/api/webhooks/1328286109838610463/K9_0-0TfsXwKbSzrARvxLAbL819QsVBzh80oC2qPQ4J1ZVkIJD-M4FynnCPYqJIfTlqF"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body: '{"content": "Server upgrade complete!"}'
+        body_format: json
