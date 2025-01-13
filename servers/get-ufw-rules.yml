@@ -9,9 +9,19 @@
         return_content: yes
       register: port_data
 
+    - name: Debug port_data content
+      debug:
+        var: port_data.content
+
     - name: Parse JSON data
       set_fact:
         port_list: "{{ port_data.content | from_json }}"
+      ignore_errors: true  # Continue even if JSON parsing fails
+
+    - name: Check if JSON parsing failed
+      fail:
+        msg: "Failed to parse JSON data. Check the 'port_data' variable for details."
+      when: port_list is failed
 
     - name: Gather existing UFW rules
       shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5, $6}'
