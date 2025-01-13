@@ -71,7 +71,7 @@
               {{ rules.append(rule) or '' }}
             {% endif %}
           {% endfor %}
-          {{ rules }}
+          {{ rules | to_json }}
       when: ip_list is defined
 
     - name: Debug skipped lines
