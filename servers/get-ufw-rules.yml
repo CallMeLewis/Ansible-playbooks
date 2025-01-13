@@ -54,13 +54,24 @@
           {% set rules = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
             {% set parts = line.split() %}
-            {% if parts|length >= 3 %}
-              {% set rule = {'num': parts[0]|replace("[","")|replace("]",""), 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4:]|join(" ") if parts|length > 4 else ""} %}
+            {% if parts|length >= 4 %}  # Ensure we have enough parts in the line
+              {% set rule = {
+                'num': parts[0]|replace("[","")|replace("]",""),
+                'to': parts[1],
+                'action': parts[2],
+                'from': parts[3],  # Ensure the 'from' field exists
+                'comment': parts[4:]|join(" ") if parts|length > 4 else ""
+              } %}
               {{ rules.append(rule) }}
             {% endif %}
           {% endfor %}
           {{ rules }}
       when: ip_list is defined
+
+    - name: Debug ufw_rules_list
+      debug:
+        var: ufw_rules_list
+      when: ufw_rules_list is defined
 
     - name: Set facts for rules to be deleted
       set_fact:
