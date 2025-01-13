@@ -43,9 +43,13 @@
       when: ip_list is undefined or ip_data.failed or ip_data.status != 200
 
     - name: Gather existing UFW rules
-      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}'
+      shell: ufw status numbered
       register: current_ufw_rules
       changed_when: false
+
+    - name: Debug raw UFW output
+      debug:
+        var: current_ufw_rules.stdout_lines
 
     - name: Extract rule details
       set_fact:
@@ -53,13 +57,19 @@
           {% set rules = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
             {% set parts = line.split() %}
-            {% if parts|length >= 3 %}
-              {% set rule = {'num': parts[0]|replace('[','')|replace(']','') , 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4] if parts|length > 4 else None} %}
+            {% if parts|length >= 5 %}
+              {% set rule = {'num': parts[0]|replace('[','')|replace(']','') , 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4]} %}
               {{ rules.append(rule) }}
+            {% else %}
+              {{ debug("Skipping line: " ~ line) }}
             {% endif %}
           {% endfor %}
           {{ rules }}
       when: ip_list is defined
+
+    - name: Debug parsed UFW rules
+      debug:
+        var: ufw_rules_list
 
     - name: Set facts for rules to be deleted
       set_fact:
@@ -67,12 +77,16 @@
           {% set delete_list = [] %}
           {% set allowed_ips = ip_list | map(attribute='port') | list %}
           {% for rule in ufw_rules_list %}
-            {% if rule['from'] != 'Anywhere' and rule['from'] not in allowed_ips %}
+            {% if rule['from'] is defined and rule['from'] != 'Anywhere' and rule['from'] not in allowed_ips %}
               {{ delete_list.append(rule) }}
             {% endif %}
           {% endfor %}
           {{ delete_list }}
       when: ip_list is defined
+
+    - name: Debug rules to delete
+      debug:
+        var: rules_to_delete
 
     - name: Configure UFW rules
       block:
