@@ -60,6 +60,7 @@
 
         - name: Remove existing UFW rules for IPs in the list not in JSON
           ufw:
+            delete: yes
             src: "{{ item.port }}"
           loop: "{{ ip_list }}"
           when: item.port != "192.168.0.34"
