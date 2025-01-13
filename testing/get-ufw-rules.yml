@@ -60,12 +60,18 @@
             {% if parts|length >= 5 %}
               {% set rule = {'num': parts[0]|replace('[','')|replace(']','') , 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4]} %}
               {{ rules.append(rule) }}
-            {% elif parts|length > 0 and parts[0] != "Status:" and parts[0] != "" and parts[0] != "To" %}
-              {{ print("Skipping line: " ~ line) }}
             {% endif %}
           {% endfor %}
           {{ rules }}
       when: ip_list is defined
+
+    - name: Debug skipped lines
+      debug:
+        msg: "Skipping line: {{ item }}"
+      loop: "{{ current_ufw_rules.stdout_lines }}"
+      when:
+        - ip_list is defined
+        - item.split() | length < 5
 
     - name: Debug parsed UFW rules
       debug:
