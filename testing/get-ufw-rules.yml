@@ -59,15 +59,15 @@
             {% if line is match('^\\[\\s*\\d+\\]') %}
               {% set num = line.split('[')[1].split(']')[0]|trim %}
               {% set rest = line.split(']')[1]|trim %}
-              {% set action = rest.split()[0] %}
-              {% set from = rest.split()[2] %}
+              {% set action_parts = rest.split() %}
+              {% set action = action_parts[0] ~ " " ~ action_parts[1] %}
+              {% set from = action_parts[2] %}
               {% if '#' in rest %}
                 {% set comment = rest.split('#')[1]|trim %}
               {% else %}
                 {% set comment = '' %}
               {% endif %}
-              {% set rule = {'num': num, 'action': action, 'from': from, 'comment': comment} %}
-              {{ rules.append(rule) or '' }}
+              {{ rules.append({'num': num, 'action': action, 'from': from, 'comment': comment}) or '' }}
             {% endif %}
           {% endfor %}
           {{ rules }}
