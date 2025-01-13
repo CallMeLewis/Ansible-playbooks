@@ -67,7 +67,8 @@
               {% else %}
                 {% set comment = '' %}
               {% endif %}
-              {{ rules.append({'num': num, 'action': action, 'from': from, 'comment': comment}) or '' }}
+              {% set rule = {'num': num, 'action': action, 'from': from, 'comment': comment} %}
+              {{ rules.append(rule) or '' }}
             {% endif %}
           {% endfor %}
           {{ rules }}
