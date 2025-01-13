@@ -75,34 +75,3 @@
       set_fact:
         rules_to_delete: >-
           {% set delete_list = [] %}
-          {% set allowed_ips = ip_list | map(attribute='port') | list %}
-          {% for rule in ufw_rules_list %}
-            {% if rule['from'] is defined and rule['from'] != 'Anywhere' and rule['from'] not in allowed_ips %}
-              {{ delete_list.append(rule) }}
-            {% endif %}
-          {% endfor %}
-          {{ delete_list }}
-      when: ip_list is defined
-
-    - name: Debug rules to delete
-      debug:
-        var: rules_to_delete
-
-    - name: Configure UFW rules
-      block:
-        - name: Add UFW rule
-          ufw:
-            rule: allow
-            src: "{{ item.port }}"
-            comment: "{{ item.comment | default('Managed by Ansible') }}"
-          loop: "{{ ip_list }}"
-          when:
-            - not current_ufw_rules.stdout_lines | select('match', '.*' + item.port + '.*') | list
-
-        - name: Remove outdated UFW rules
-          ufw:
-            rule: delete
-            num: "{{ item.num }}"
-            state: absent
-          loop: "{{ rules_to_delete }}"
-      when: ip_list is defined
