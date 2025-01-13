@@ -57,8 +57,7 @@
 
     - name: Remove outdated UFW rules
       ufw:
-        state: absent
         delete: yes
         rule_num: "{{ item }}"
-      loop: "{{ rules_to_delete | map('int') | list }}"
+      loop: "{{ rules_to_delete }}"
       when: rules_to_delete | length > 0
