@@ -11,26 +11,6 @@
       ignore_errors: true
       check_mode: no
 
-    - name: Debug ip_data content
-      debug:
-        var: ip_data.content
-      when: ip_data.content is defined
-
-    - name: Debug failed status
-      debug:
-        var: ip_data.failed
-      when: ip_data.failed is defined
-
-    - name: Debug msg status
-      debug:
-        var: ip_data.msg
-      when: ip_data.msg is defined
-
-    - name: Debug status code
-      debug:
-        var: ip_data.status
-      when: ip_data.status is defined
-
     - name: Parse JSON data
       set_fact:
         ip_list: "{{ ip_data.content | from_json }}"
