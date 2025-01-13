@@ -68,20 +68,10 @@
 
     - name: Set facts for rules to be deleted
       set_fact:
-        rules_to_delete: >-
-          {% set delete_list = [] %}
-          {% set allowed_ips = ip_list | map(attribute='port') | list %}
-          {% for rule in ufw_rules_list %}
-            {% if rule['from'] is defined and rule['from'] != 'Anywhere' and rule['from'] not in allowed_ips %}
-              {{ delete_list.append(rule) }}
-            {% endif %}
-          {% endfor %}
-          {% if delete_list is not iterable or delete_list | length == 0 %}
-            []
-          {% else %}
-            {{ delete_list }}
-          {% endif %}
-      when: ip_list is defined
+        rules_to_delete: "{{ ufw_rules_list | json_query('[?from!=\`Anywhere\` && contains(allowed_ips, from)==`false`]') }}"
+      vars:
+        allowed_ips: "{{ ip_list | map(attribute='port') | list }}"
+      when: ufw_rules_list is defined
 
     - name: Debug rules to delete
       debug:
