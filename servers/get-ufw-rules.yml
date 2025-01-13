@@ -1,0 +1,62 @@
+---
+- hosts: your_servers
+  become: true
+  tasks:
+    - name: Fetch port data from URL
+      uri:
+        url: https://stats.osbornetech.support/ansible/ufw/ufw_rules.json
+        method: GET
+        return_content: yes
+      register: port_data
+
+    - name: Parse JSON data
+      set_fact:
+        port_list: "{{ port_data.content | from_json }}"
+
+    - name: Gather existing UFW rules
+      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5, $6}'
+      register: current_ufw_rules
+      changed_when: false
+
+    - name: Extract rule details
+      set_fact:
+        ufw_rules_list: >-
+          {% set rules = [] %}
+          {% for line in current_ufw_rules.stdout_lines %}
+            {% set parts = line.split() %}
+            {% if parts|length >= 5 %}
+              {% set rule = {'num': parts[0], 'action': parts[1], 'direction': parts[2], 'proto': parts[3], 'port': parts[4], 'src': parts[5] if parts|length > 5 else None, 'comment': ' '.join(parts[6:]) if parts|length > 6 else None} %}
+              {{ rules.append(rule) }}
+            {% endif %}
+          {% endfor %}
+          {{ rules }}
+
+    - name: Configure UFW rules
+      block:
+        - name: Add UFW rule (with IP restrictions)
+          ufw:
+            rule: allow
+            direction: in
+            port: "{{ item.port }}"
+            proto: "{{ item.proto | default('tcp') }}"
+            src: "{{ item.source }}"
+            comment: "{{ item.comment | default('Managed by Ansible') }}"
+          loop: "{{ port_list }}"
+          when: item.source is defined and not current_ufw_rules.stdout_lines | map('regex_search', '.*\[ ' + item.port + ' \].*' + (item.source | default('')) + '.*') | list | any
+
+        - name: Add UFW rule (without IP restrictions)
+          ufw:
+            rule: allow
+            direction: in
+            port: "{{ item.port }}"
+            proto: "{{ item.proto | default('tcp') }}"
+            comment: "{{ item.comment | default('Managed by Ansible') }}"
+          loop: "{{ port_list }}"
+          when: item.source is not defined and not current_ufw_rules.stdout_lines | map('regex_search', '.*\[ ' + item.port + ' \].*') | list | any
+
+        - name: Remove outdated UFW rules
+          ufw:
+            rule: delete
+            num: "{{ item.num }}"
+          loop: "{{ ufw_rules_list }}"
+          when: not port_list | map(attribute='port') | list | map('regex_search', '.*' + item.port + '.*') | list | any
