@@ -60,5 +60,5 @@
         state: absent
         delete: yes
         rule_num: "{{ item }}"
-      loop: "{{ rules_to_delete }}"
+      loop: "{{ rules_to_delete | map('int') | list }}"
       when: rules_to_delete | length > 0
