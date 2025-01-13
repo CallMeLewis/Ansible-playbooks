@@ -2,18 +2,19 @@
 - hosts: all
   become: true
   tasks:
-    - name: Update apt cache
+    # Upgrade packages
+    - name: upgrade apt packages
+      become: yes
       apt:
+        upgrade: yes
         update_cache: yes
-
-    - name: Upgrade all packages
-      apt:
-        upgrade: dist
-
-    - name: Reboot the server
-      reboot:
-        connect_timeout: 5
-        reboot_timeout: 300
+        
+    # Check if reboot is required
+    - name: check if system reboot is required
+      become: yes
+      stat:
+        path: /var/run/reboot-required
+      required: reboot_required
 
     - name: Send Discord notification
       uri:
@@ -21,5 +22,7 @@
         method: POST
         headers:
           Content-Type: "application/json"
-        body: '{"content": "Server upgrade complete!"}'
+        status_code: 204
+        body: '{"content": "Reboot required on {{ inventory_hostname }}"}'
         body_format: json
+      when: reboot_required.stat.exists
