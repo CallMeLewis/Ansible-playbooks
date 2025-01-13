@@ -74,9 +74,8 @@
             - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*') | select | list
 
         - name: Remove outdated UFW rules
-          ufw:
-            rule: delete
-            num: "{{ item.num }}"
-          loop: "{{ ufw_rules_list }}"
-          when: not ip_list | map(attribute='port') | select | list
-      when: ip_list is defined
+      ufw:
+        rule: delete
+        num: "{{ item.num }}"
+      loop: "{{ query('list', ufw_rules_list) }}"  # Use query instead of loop
+      when: ip_list | map(attribute='port') | select | list
