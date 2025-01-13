@@ -62,6 +62,17 @@
           {{ rules }}
       when: ip_list is defined
 
+    - name: Set facts for rules to be deleted
+      set_fact:
+        rules_to_delete: >-
+          {% set delete_list = [] %}
+          {% for rule in ufw_rules_list %}
+            {% if rule.from not in ip_list | map(attribute='port') | list %}
+              {{ delete_list.append(rule) }}
+            {% endif %}
+          {% endfor %}
+          {{ delete_list }}
+
     - name: Configure UFW rules
       block:
         - name: Add UFW rule
@@ -78,6 +89,5 @@
             rule: delete
             num: "{{ item.num }}"
             state: absent
-          loop: "{{ query('list', ufw_rules_list) }}"
-          when: item.from not in ip_list | map(attribute='port') | list
+          loop: "{{ rules_to_delete }}"
       when: ip_list is defined
