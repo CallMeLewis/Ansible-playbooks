@@ -48,7 +48,7 @@
               {% endif %}
             {% endif %}
           {% endfor %}
-          {{ delete_list }}
+          {{ delete_list | to_json }}
       when: ip_list is defined
 
     - name: Debug rules to delete
@@ -58,6 +58,6 @@
     - name: Remove outdated UFW rules
       ufw:
         delete: yes
-        rule_num: "{{ item }}"
-      loop: "{{ rules_to_delete | list }}"
+        rule_num: "{{ item | int }}"
+      loop: "{{ rules_to_delete }}"
       when: rules_to_delete | length > 0
