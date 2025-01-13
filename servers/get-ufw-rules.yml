@@ -67,7 +67,7 @@
         rules_to_delete: >-
           {% set delete_list = [] %}
           {% for rule in ufw_rules_list %}
-            {% if rule.from not in ip_list | map(attribute='port') | list %}
+            {% if rule['from'] not in ip_list | map(attribute='port') | list %}
               {{ delete_list.append(rule) }}
             {% endif %}
           {% endfor %}
