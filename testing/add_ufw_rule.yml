@@ -1,9 +1,0 @@
----
-- hosts: all  # Or specify a group or host
-  become: true  # Required to run ufw commands
-  tasks:
-    - name: Allow HTTP traffic on port 80
-      ufw:
-        rule: allow
-        port: 80
-        proto: tcp
