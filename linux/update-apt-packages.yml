@@ -6,7 +6,11 @@
       apt:
         update_cache: yes
 
-    - name: Upgrade all packages excluding docker
+    - name: Upgrade all packages
       apt:
         upgrade: dist
-        exclude: docker*, containerd*
+
+    - name: Reboot the server
+      reboot:
+        connect_timeout: 5
+        reboot_timeout: 300
