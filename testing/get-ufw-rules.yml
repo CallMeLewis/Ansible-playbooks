@@ -97,7 +97,7 @@
             comment: "{{ item.comment | default('Managed by Ansible') }}"
           loop: "{{ ip_list }}"
           when:
-            - not current_ufw_rules.stdout_lines | map('regex_search', '^\\[' + item.num + '\\]\\s+Anywhere\\s+ALLOW\\s+IN\\s+' + item.port) | select | list
+            - not current_ufw_rules.stdout_lines | select('match', '.*' + item.port + '.*') | list
 
         - name: Remove outdated UFW rules
           ufw:
