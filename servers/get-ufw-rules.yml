@@ -72,6 +72,7 @@
             {% endif %}
           {% endfor %}
           {{ delete_list }}
+      when: ip_list is defined
 
     - name: Configure UFW rules
       block:
