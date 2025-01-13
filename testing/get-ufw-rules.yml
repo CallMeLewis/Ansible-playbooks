@@ -60,8 +60,8 @@
             {% if parts|length >= 5 %}
               {% set rule = {'num': parts[0]|replace('[','')|replace(']','') , 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4]} %}
               {{ rules.append(rule) }}
-            {% else %}
-              {{ debug("Skipping line: " ~ line) }}
+            {% elif parts|length > 0 and parts[0] != "Status:" and parts[0] != "" and parts[0] != "To" %}
+              {{ print("Skipping line: " ~ line) }}
             {% endif %}
           {% endfor %}
           {{ rules }}
@@ -75,3 +75,38 @@
       set_fact:
         rules_to_delete: >-
           {% set delete_list = [] %}
+          {% set allowed_ips = ip_list | map(attribute='port') | list %}
+          {% for rule in ufw_rules_list %}
+            {% if rule['from'] is defined and rule['from'] != 'Anywhere' and rule['from'] not in allowed_ips %}
+              {{ delete_list.append(rule) }}
+            {% endif %}
+          {% endfor %}
+          {% if delete_list is not iterable or delete_list | length == 0 %}
+            []
+          {% else %}
+            {{ delete_list }}
+          {% endif %}
+      when: ip_list is defined
+
+    - name: Debug rules to delete
+      debug:
+        var: rules_to_delete
+
+    - name: Configure UFW rules
+      block:
+        - name: Add UFW rule
+          ufw:
+            rule: allow
+            src: "{{ item.port }}"
+            comment: "{{ item.comment | default('Managed by Ansible') }}"
+          loop: "{{ ip_list }}"
+          when:
+            - not current_ufw_rules.stdout_lines | select('match', '.*' + item.port + '.*') | list
+
+        - name: Remove outdated UFW rules
+          ufw:
+            rule: delete
+            num: "{{ item.num }}"
+            state: absent
+          loop: "{{ rules_to_delete }}"
+      when: ip_list is defined
