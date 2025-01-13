@@ -25,9 +25,8 @@
     - name: Add UFW rules for allowed IPs
       ufw:
         rule: allow
-        src: "{{ item.port }}"
+        from_ip: "{{ item.port }}"
         comment: "{{ item.comment | default('Managed by Ansible') }}"
-        name: "{{ item.rule_num }}"
       loop: "{{ ip_list }}"
       when: ip_list is defined
 
@@ -58,6 +57,7 @@
 
     - name: Remove outdated UFW rules
       ufw:
+        state: absent
         delete: yes
         rule_num: "{{ item }}"
       loop: "{{ rules_to_delete }}"
