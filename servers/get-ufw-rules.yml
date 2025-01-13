@@ -11,26 +11,6 @@
       ignore_errors: true
       check_mode: no
 
-    - name: Debug port_data content
-      debug:
-        var: port_data.content
-      when: port_data.content is defined
-
-    - name: Debug failed status
-      debug:
-        var: port_data.failed
-      when: port_data.failed is defined
-
-    - name: Debug msg status
-      debug:
-        var: port_data.msg
-      when: port_data.msg is defined
-
-    - name: Debug status code
-      debug:
-        var: port_data.status
-      when: port_data.status is defined
-
     - name: Parse JSON data
       set_fact:
         ip_list: "{{ port_data.content | from_json }}"
