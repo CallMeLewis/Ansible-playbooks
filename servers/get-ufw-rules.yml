@@ -46,7 +46,6 @@
       shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}'
       register: current_ufw_rules
       changed_when: false
-      when: ip_list is defined
 
     - name: Extract rule details
       set_fact:
