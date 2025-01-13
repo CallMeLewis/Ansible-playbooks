@@ -8,7 +8,7 @@
         method: GET
         return_content: yes
       register: port_data
-      ignore_errors: true  # Ignore errors from the uri module
+      ignore_errors: true
       check_mode: no
 
     - name: Debug port_data content
@@ -33,20 +33,20 @@
 
     - name: Parse JSON data
       set_fact:
-        port_list: "{{ port_data.content | from_json }}"
+        ip_list: "{{ port_data.content | from_json }}" # Rename port_list to ip_list
       when: port_data.content is defined and port_data.status == 200
       ignore_errors: true
 
     - name: Check if JSON parsing failed or URL fetch failed
       fail:
         msg: "Failed to parse JSON data or fetch URL. Check 'port_data' for details."
-      when: port_list is undefined or port_data.failed or port_data.status != 200
+      when: ip_list is undefined or port_data.failed or port_data.status != 200
 
     - name: Gather existing UFW rules
-      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5, $6}'
+      shell: ufw status numbered | awk '{print $1, $2, $3, $4, $5}' # Update awk to match the output you provided
       register: current_ufw_rules
       changed_when: false
-      when: port_list is defined
+      when: ip_list is defined
 
     - name: Extract rule details
       set_fact:
@@ -54,39 +54,23 @@
           {% set rules = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
             {% set parts = line.split() %}
-            {% if parts|length >= 5 %}
-              {% set rule = {'num': parts[0], 'action': parts[1], 'direction': parts[2], 'proto': parts[3], 'port': parts[4], 'src': parts[5] if parts|length > 5 else None, 'comment': ' '.join(parts[6:]) if parts|length > 6 else None} %}
+            {% if parts|length >= 3 %}
+              {% set rule = {'num': parts[0], 'to': parts[1], 'action': parts[2], 'from': parts[3], 'comment': parts[4] if parts|length > 4 else None} %}
               {{ rules.append(rule) }}
             {% endif %}
           {% endfor %}
           {{ rules }}
-      when: port_list is defined
+      when: ip_list is defined
 
     - name: Configure UFW rules
       block:
-        - name: Add UFW rule (with IP restrictions)
+        - name: Add UFW rule
           ufw:
             rule: allow
-            direction: in
-            port: "{{ item.port }}"
-            proto: "{{ item.proto | default('tcp') }}"
-            src: "{{ item.source }}"
+            src: "{{ item.port }}"  # Use 'port' as the source IP
             comment: "{{ item.comment | default('Managed by Ansible') }}"
-          loop: "{{ port_list }}"
+          loop: "{{ ip_list }}" # Use ip_list
           when:
-            - item.source is defined
-            - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*' + (item.source | default('')) + '.*') | select | list
-
-        - name: Add UFW rule (without IP restrictions)
-          ufw:
-            rule: allow
-            direction: in
-            port: "{{ item.port }}"
-            proto: "{{ item.proto | default('tcp') }}"
-            comment: "{{ item.comment | default('Managed by Ansible') }}"
-          loop: "{{ port_list }}"
-          when:
-            - item.source is not defined
             - not current_ufw_rules.stdout_lines | map('regex_search', '.*' + item.port + '.*') | select | list
 
         - name: Remove outdated UFW rules
@@ -94,5 +78,5 @@
             rule: delete
             num: "{{ item.num }}"
           loop: "{{ ufw_rules_list }}"
-          when: not port_list | map(attribute='port') | select | list
-      when: port_list is defined
+          when: not ip_list | map(attribute='port') | select | list
+      when: ip_list is defined
