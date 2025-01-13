@@ -22,80 +22,31 @@
         msg: "Failed to parse JSON data or fetch URL. Check 'ip_data' for details."
       when: ip_list is undefined or ip_data.failed or ip_data.status != 200
 
-    - name: Gather existing UFW rules
-      shell: ufw status numbered
-      register: current_ufw_rules
-      changed_when: false
+    - name: Add UFW rules for allowed IPs
+      ufw:
+        rule: allow
+        src: "{{ item.port }}"
+        comment: "{{ item.comment | default('Managed by Ansible') }}"
+      loop: "{{ ip_list }}"
+      when: ip_list is defined
 
-    - name: Debug raw UFW output
-      debug:
-        var: current_ufw_rules.stdout_lines
-
-    - name: Extract rule details
+    - name: Ensure IP addresses are in the correct format for ufw.rules
       set_fact:
-        ufw_rules_list: >-
-          {% set rules = [] %}
-          {% for line in current_ufw_rules.stdout_lines %}
-            {% if line is match('^\\[\\s*\\d+\\]') %}
-              {% set num = line.split('[')[1].split(']')[0]|trim %}
-              {% set rest = line.split(']')[1]|trim %}
-              {% set action_parts = rest.split() %}
-              {% set action = action_parts[0] ~ " " ~ action_parts[1] %}
-              {% set from = action_parts[2] %}
-              {% if '#' in rest %}
-                {% set comment = rest.split('#')[1]|trim %}
-              {% else %}
-                {% set comment = '' %}
-              {% endif %}
-              {% set rule = {'num': num, 'action': action, 'from': from, 'comment': comment} %}
-              {{ rules.append(rule) or '' }}
-            {% endif %}
+        ufw_rules_entries: >-
+          {{ ip_list | map(attribute='port') | list | map('regex_replace', '^(.*)$', '-A ufw-user-input -s \\1 -j ACCEPT') | list }}
+
+    - name: Update ufw.rules file (remove outdated entries)
+      blockinfile:
+        path: /etc/ufw/user.rules
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        block: |
+          {% for entry in ufw_rules_entries %}
+          {{ entry }}
           {% endfor %}
-          {{ rules }}
-      when: ip_list is defined
+      become: true
+      register: ufw_rules_update
 
-    - name: Debug skipped lines
-      debug:
-        msg: "Skipping line: {{ item }}"
-      loop: "{{ current_ufw_rules.stdout_lines }}"
-      when:
-        - ip_list is defined
-        - item.split() | length < 5
-
-    - name: Debug parsed UFW rules
-      debug:
-        var: ufw_rules_list
-
-    - name: Set facts for rules to be deleted
-      set_fact:
-        rules_to_delete: >-
-          {{ ufw_rules_list | json_query('[?from!=`Anywhere` && contains(allowed_ips, from)==false]') }}
-      vars:
-        allowed_ips: "{{ ip_list | map(attribute='port') | list }}"
-      when: ufw_rules_list is defined
-
-    - name: Debug rules to delete
-      debug:
-        var: rules_to_delete
-
-    - name: Configure UFW rules
-      block:
-        - name: Add UFW rule
-          ufw:
-            rule: allow
-            src: "{{ item.port }}"
-            comment: "{{ item.comment | default('Managed by Ansible') }}"
-          loop: "{{ ip_list }}"
-          when:
-            - not current_ufw_rules.stdout_lines | select('match', '.*' + item.port + '.*') | list
-
-        - name: Remove outdated UFW rules
-          ufw:
-            rule: delete
-            num: "{{ item.num }}"
-            state: absent
-          loop: "{{ rules_to_delete | default([]) }}"
-          when: 
-            - rules_to_delete is defined
-            - rules_to_delete | length > 0
-      when: ip_list is defined
+    - name: Reload UFW if rules were updated
+      ufw:
+        state: reloaded
+      when: ufw_rules_update.changed
