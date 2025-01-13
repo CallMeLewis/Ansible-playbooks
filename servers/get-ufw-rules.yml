@@ -9,6 +9,7 @@
         return_content: yes
       register: port_data
       ignore_errors: true  # Ignore errors from the uri module
+      check_mode: no
 
     - name: Debug port_data content
       debug:
@@ -24,6 +25,11 @@
       debug:
         var: port_data.msg
       when: port_data.msg is defined
+
+    - name: Debug status code
+      debug:
+        var: port_data.status
+      when: port_data.status is defined
 
     - name: Parse JSON data
       set_fact:
