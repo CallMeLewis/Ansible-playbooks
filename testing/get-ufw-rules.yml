@@ -21,6 +21,14 @@
         msg: "Failed to parse YAML data or fetch URL for rules. Check 'rule_data' for details."
       when: rule_list is undefined or rule_data.failed or rule_data.status != 200
 
+    - name: Disable UFW
+      shell: ufw disable
+      changed_when: true
+
+    - name: Remove all existing UFW rules
+      shell: ufw reset
+      changed_when: true
+
     - name: Add UFW rules for allowed IPs
       ufw:
         rule: allow
@@ -29,32 +37,6 @@
       loop: "{{ rule_list }}"
       when: rule_list is defined
 
-    - name: Gather existing UFW rules
-      shell: ufw status numbered | sed -n 's/^\s*\[\s*\([0-9]\+\)\].*/\1/p' 
-      register: current_ufw_rules
-      changed_when: false
-
-    - name: Extract existing rule numbers
-      set_fact:
-        existing_rule_numbers: "{{ current_ufw_rules.stdout_lines }}"  # Corrected line
-      when: current_ufw_rules.stdout_lines is defined
-
-    - name: Debug existing rule numbers
-      debug:
-        var: existing_rule_numbers
-
-    - name: Get rule numbers to delete
-      set_fact:
-        rules_to_delete: "{{ allowed_rule_numbers | difference(existing_rule_numbers) }}"
-      vars:
-        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | map('string') | list }}"
-      when: existing_rule_numbers is defined and rule_list is defined
-
-    - name: Debug rules to delete
-      debug:
-        var: rules_to_delete
-
-    - name: Remove outdated UFW rules
-      command: "ufw --force delete {{ item }}"
-      loop: "{{ rules_to_delete }}"
-      when: rules_to_delete is defined and rules_to_delete | length > 0
+    - name: Enable UFW
+      shell: ufw enable
+      changed_when: true
