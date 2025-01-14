@@ -42,8 +42,13 @@
     - name: Parse YAML data for deleting rules
       set_fact:
         delete_list: "{{ delete_data.content | from_yaml }}"
-      when: delete_data.content is defined and delete_data.status == 200
+      when: delete_data.content is defined and delete_data.status == 200 and delete_data.content | length > 0
       ignore_errors: true
+
+    - name: Handle empty or missing delete_rules.yaml
+      set_fact:
+        delete_list: []
+      when: delete_list is not defined or delete_list is none or delete_list == ""
 
     - name: Check if deleting rules YAML parsing failed or URL fetch failed
       fail:
