@@ -50,7 +50,7 @@
         msg: "Failed to parse YAML data or fetch URL for deleting rules. Check 'delete_data' for details."
       when: delete_list is undefined or delete_data.failed or delete_data.status != 200
 
-    - name: Remove outdated UFW rules
-      command: "ufw delete {{ item }}"
-      loop: "{{ delete_list }}"
-      when: delete_list is defined and delete_list | length > 0
+   - name: Remove outdated UFW rules
+     command: "yes | ufw delete {{ item }}"
+     loop: "{{ delete_list }}"
+     when: delete_list is defined and delete_list | length > 0
