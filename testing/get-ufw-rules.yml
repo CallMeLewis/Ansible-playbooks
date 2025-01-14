@@ -26,26 +26,16 @@
       changed_when: true
 
     - name: Remove all existing UFW rules
-      shell: sudo ufw status numbered | sed -n 's/^\s*\[\s*\([0-9]\+\)\].*/\1/p' | xargs -I {} sudo ufw delete {}
+      shell: yes | sudo ufw reset
       changed_when: true
 
     - name: Add UFW rules for allowed IPs
-      block:
-        - name: Add the first rule without insert
-          ufw:
-            rule: allow
-            from_ip: "{{ rule_list.0.port }}"
-            comment: "{{ rule_list.0.comment | default('Managed by Ansible') }}"
-          when: rule_list is defined
-
-        - name: Add the remaining rules with insert
-          ufw:
-            rule: allow
-            from_ip: "{{ item.port }}"
-            comment: "{{ item.comment | default('Managed by Ansible') }}"
-            insert: "{{ (item.rule_num | int) - loop.index + 1 if (item.rule_num | int) - loop.index + 1 <= (ufw_rule_count.stdout | int) + 1 else (ufw_rule_count.stdout | int) + 1 }}" 
-          loop: "{{ rule_list[1:] }}"
-          when: rule_list | length > 1
+      ufw:
+        rule: allow
+        from_ip: "{{ item.port }}"
+        comment: "{{ item.comment | default('Managed by Ansible') }}"
+      loop: "{{ rule_list }}"
+      when: rule_list is defined
 
     - name: Enable UFW
       shell: yes | sudo ufw enable
