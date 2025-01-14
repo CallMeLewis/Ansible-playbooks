@@ -38,5 +38,5 @@
       when: rule_list is defined
 
     - name: Enable UFW
-      shell: ufw enable
+      shell: yes | sudo ufw enable
       changed_when: true
