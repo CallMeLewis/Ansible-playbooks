@@ -4,7 +4,7 @@
   tasks:
     - name: Fetch data for adding rules
       uri:
-        url: https://stats.osbornetech.support/ansible/ufw/rules_to_add.yaml
+        url: https://stats.osbornetech.support/ansible/ufw/add_rules.yaml
         method: GET
         return_content: yes
       register: add_data
@@ -32,7 +32,7 @@
 
     - name: Fetch data for deleting rules
       uri:
-        url: https://stats.osbornetech.support/ansible/ufw/rules_to_delete.yaml
+        url: https://stats.osbornetech.support/ansible/ufw/delete_rules.yaml
         method: GET
         return_content: yes
       register: delete_data
