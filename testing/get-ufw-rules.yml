@@ -43,7 +43,7 @@
             rule: allow
             from_ip: "{{ item.port }}"
             comment: "{{ item.comment | default('Managed by Ansible') }}"
-            insert: "{{ item.rule_num | int }}"
+            insert: "{{ (item.rule_num | int) - loop.index + 1 if (item.rule_num | int) - loop.index + 1 <= (ufw_rule_count.stdout | int) + 1 else (ufw_rule_count.stdout | int) + 1 }}" 
           loop: "{{ rule_list[1:] }}"
           when: rule_list | length > 1
 
