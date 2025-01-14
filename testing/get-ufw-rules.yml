@@ -2,87 +2,68 @@
 - hosts: all
   become: true
   tasks:
-    - name: Fetch data for adding rules
+    - name: Fetch rule data from URL
       uri:
-        url: https://stats.osbornetech.support/ansible/ufw/add_rules.yaml
+        url: https://stats.osbornetech.support/ansible/ufw/ufw_rules.yaml
         method: GET
         return_content: yes
-      register: add_data
+      register: rule_data
       ignore_errors: true
       check_mode: no
 
-    - name: Parse YAML data for adding rules
+    - name: Parse YAML data for rules
       set_fact:
-        add_list: "{{ add_data.content | from_yaml }}"
-      when: add_data.content is defined and add_data.status == 200
+        rule_list: "{{ rule_data.content | from_yaml }}"
+      when: rule_data.content is defined and rule_data.status == 200
       ignore_errors: true
 
-    - name: Check if adding rules YAML parsing failed or URL fetch failed
+    - name: Check if YAML parsing failed or URL fetch failed
       fail:
-        msg: "Failed to parse YAML data or fetch URL for adding rules. Check 'add_data' for details."
-      when: add_list is undefined or add_data.failed or add_data.status != 200
+        msg: "Failed to parse YAML data or fetch URL for rules. Check 'rule_data' for details."
+      when: rule_list is undefined or rule_data.failed or rule_data.status != 200
 
     - name: Add UFW rules for allowed IPs
       ufw:
         rule: allow
         from_ip: "{{ item.port }}"
         comment: "{{ item.comment | default('Managed by Ansible') }}"
-      loop: "{{ add_list }}"
-      when: add_list is defined
-
-    - name: Fetch data for deleting rules
-      uri:
-        url: https://stats.osbornetech.support/ansible/ufw/delete_rules.yaml
-        method: GET
-        return_content: yes
-      register: delete_data
-      ignore_errors: true
-      check_mode: no
-
-    - name: Parse YAML data for deleting rules
-      set_fact:
-        delete_list: "{{ delete_data.content | from_yaml }}"
-      when: delete_data.content is defined and delete_data.status == 200 and delete_data.content | length > 0
-      ignore_errors: true
-
-    - name: Handle empty or missing delete_rules.yaml
-      set_fact:
-        delete_list: []
-      when: delete_list is not defined or delete_list is none or delete_list == ""
-
-    - name: Check if deleting rules YAML parsing failed or URL fetch failed
-      fail:
-        msg: "Failed to parse YAML data or fetch URL for deleting rules. Check 'delete_data' for details."
-      when: delete_list is undefined or delete_data.failed or delete_data.status != 200
+      loop: "{{ rule_list }}"
+      when: rule_list is defined
 
     - name: Gather existing UFW rules
       shell: ufw status numbered | grep -E "^\[[[:space:]]*[[:digit:]]+]"
       register: current_ufw_rules
       changed_when: false
 
-    - name: Extract rule numbers to delete
+    - name: Extract existing rule numbers
       set_fact:
-        rules_to_delete: >-
-          {% set delete_list = [] %}
-          {% set allowed_nums = add_list | map(attribute='rule_num') | map('string') | list %}
+        existing_rule_numbers: >-
+          {% set rule_numbers = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
             {% if line is match('^\\[\\s*\\d+\\]') %}
               {% set num = line.split('[')[1].split(']')[0]|trim %}
-              {% if num not in allowed_nums %}
-                {{ delete_list.append(num) or '' }}
-              {% endif %}
+              {{ rule_numbers.append(num) or '' }}
             {% endif %}
           {% endfor %}
-          {{ delete_list }}
-      when: add_list is defined
+          {{ rule_numbers }}
+      when: current_ufw_rules.stdout_lines is defined
+
+    - name: Debug existing rule numbers
+      debug:
+        var: existing_rule_numbers
+
+    - name: Get rule numbers to delete
+      set_fact:
+        rules_to_delete: "{{ existing_rule_numbers | difference(allowed_rule_numbers) }}"
+      vars:
+        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | map('string') | list }}"
+      when: existing_rule_numbers is defined and rule_list is defined
 
     - name: Debug rules to delete
       debug:
         var: rules_to_delete
 
     - name: Remove outdated UFW rules
-      ufw:
-        delete: yes
-        rule_num: "{{ item }}"
-      loop: "{{ delete_list | default([]) }}"
-      when: delete_list is defined and delete_list | length > 0
+      command: "ufw --force delete {{ item }}"
+      loop: "{{ rules_to_delete }}"
+      when: rules_to_delete is defined and rules_to_delete | length > 0
