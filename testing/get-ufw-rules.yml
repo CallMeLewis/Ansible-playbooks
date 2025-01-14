@@ -47,7 +47,7 @@
       set_fact:
         rules_to_delete: "{{ allowed_rule_numbers | difference(existing_rule_numbers) }}"
       vars:
-        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | list }}"
+        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | map('string') | list }}"
       when: existing_rule_numbers is defined and rule_list is defined
 
     - name: Debug rules to delete
