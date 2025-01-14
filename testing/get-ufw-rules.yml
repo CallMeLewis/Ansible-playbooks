@@ -51,8 +51,6 @@
       when: delete_list is undefined or delete_data.failed or delete_data.status != 200
 
     - name: Remove outdated UFW rules
-      ufw:
-        delete: yes
-        rule_num: "{{ item }}"
+      command: "ufw delete {{ item }}"
       loop: "{{ delete_list }}"
       when: delete_list is defined and delete_list | length > 0
