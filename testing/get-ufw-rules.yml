@@ -34,6 +34,7 @@
         rule: allow
         from_ip: "{{ item.port }}"
         comment: "{{ item.comment | default('Managed by Ansible') }}"
+        insert: "{{ item.rule_num }}"
       loop: "{{ rule_list }}"
       when: rule_list is defined
 
