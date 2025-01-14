@@ -1,4 +1,3 @@
----
 - hosts: all
   become: true
   tasks:
@@ -31,7 +30,7 @@
       when: rule_list is defined
 
     - name: Gather existing UFW rules
-      shell: ufw status numbered | grep -E "^\[[[:space:]]*[[:digit:]]+]"
+      shell: ufw status numbered | sed -n 's/^\s*\[\s*\([0-9]\+\)\].*/\1/p' 
       register: current_ufw_rules
       changed_when: false
 
@@ -40,10 +39,7 @@
         existing_rule_numbers: >-
           {% set rule_numbers = [] %}
           {% for line in current_ufw_rules.stdout_lines %}
-            {% if line is match('^\\[\\s*\\d+\\]') %}
-              {% set num = line.split('[')[1].split(']')[0]|trim %}
-              {{ rule_numbers.append(num) or '' }}
-            {% endif %}
+            {{ rule_numbers.append(line) | default('') }} 
           {% endfor %}
           {{ rule_numbers }}
       when: current_ufw_rules.stdout_lines is defined
@@ -56,7 +52,7 @@
       set_fact:
         rules_to_delete: "{{ existing_rule_numbers | difference(allowed_rule_numbers) }}"
       vars:
-        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | map('string') | list }}"
+        allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | list }}" 
       when: existing_rule_numbers is defined and rule_list is defined
 
     - name: Debug rules to delete
