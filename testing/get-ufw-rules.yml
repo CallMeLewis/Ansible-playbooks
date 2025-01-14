@@ -36,12 +36,8 @@
 
     - name: Extract existing rule numbers
       set_fact:
-        existing_rule_numbers: "{{ current_ufw_rules.stdout_lines }}"  # Corrected line
+        existing_rule_numbers: "{{ current_ufw_rules.stdout_lines }}"
       when: current_ufw_rules.stdout_lines is defined
-
-    - name: Debug existing rule numbers
-      debug:
-        var: existing_rule_numbers
 
     - name: Get rule numbers to delete
       set_fact:
@@ -49,10 +45,6 @@
       vars:
         allowed_rule_numbers: "{{ rule_list | map(attribute='rule_num') | map('string') | list }}"
       when: existing_rule_numbers is defined and rule_list is defined
-
-    - name: Debug rules to delete
-      debug:
-        var: rules_to_delete
 
     - name: Remove outdated UFW rules
       command: "ufw --force delete {{ item }}"
