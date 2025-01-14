@@ -22,7 +22,7 @@
       when: rule_list is undefined or rule_data.failed or rule_data.status != 200
 
     - name: Disable UFW
-      shell: ufw disable
+      shell: sudo ufw disable
       changed_when: true
 
     - name: Remove all existing UFW rules
@@ -30,14 +30,29 @@
       changed_when: true
 
     - name: Add UFW rules for allowed IPs
-      ufw:
-        rule: allow
-        from_ip: "{{ item.port }}"
-        comment: "{{ item.comment | default('Managed by Ansible') }}"
-        insert: "{{ item.rule_num }}"
-      loop: "{{ rule_list }}"
-      when: rule_list is defined
+      block:
+        - name: Check for existing rules
+          shell: ufw status numbered | wc -l
+          register: ufw_rule_count
+          changed_when: false
 
-    - name: Enable UFW
+        - name: Add rules with insert if rules exist
+          ufw:
+            rule: allow
+            from_ip: "{{ item.port }}"
+            comment: "{{ item.comment | default('Managed by Ansible') }}"
+            insert: "{{ item.rule_num }}"
+          loop: "{{ rule_list }}"
+          when: ufw_rule_count.stdout | int > 0
+
+        - name: Add rules without insert if no rules exist
+          ufw:
+            rule: allow
+            from_ip: "{{ item.port }}"
+            comment: "{{ item.comment | default('Managed by Ansible') }}"
+          loop: "{{ rule_list }}"
+          when: ufw_rule_count.stdout | int == 0
+          
+    - name: Enable UFW  # Re-added task
       shell: yes | sudo ufw enable
       changed_when: true
