@@ -2,62 +2,57 @@
 - hosts: all
   become: true
   tasks:
-    - name: Fetch rule data from URL
+    - name: Fetch data for adding rules
       uri:
-        url: https://stats.osbornetech.support/ansible/ufw/ufw_rules.yaml
+        url: https://stats.osbornetech.support/ansible/ufw/rules_to_add.yaml
         method: GET
         return_content: yes
-      register: rule_data
+      register: add_data
       ignore_errors: true
       check_mode: no
 
-    - name: Parse YAML data for rules
+    - name: Parse YAML data for adding rules
       set_fact:
-        rule_list: "{{ rule_data.content | from_yaml }}"
-      when: rule_data.content is defined and rule_data.status == 200
+        add_list: "{{ add_data.content | from_yaml }}"
+      when: add_data.content is defined and add_data.status == 200
       ignore_errors: true
 
-    - name: Check if YAML parsing failed or URL fetch failed
+    - name: Check if adding rules YAML parsing failed or URL fetch failed
       fail:
-        msg: "Failed to parse YAML data or fetch URL for rules. Check 'rule_data' for details."
-      when: rule_list is undefined or rule_data.failed or rule_data.status != 200
+        msg: "Failed to parse YAML data or fetch URL for adding rules. Check 'add_data' for details."
+      when: add_list is undefined or add_data.failed or add_data.status != 200
 
     - name: Add UFW rules for allowed IPs
       ufw:
         rule: allow
         from_ip: "{{ item.port }}"
         comment: "{{ item.comment | default('Managed by Ansible') }}"
-      loop: "{{ rule_list }}"
-      when: rule_list is defined
+      loop: "{{ add_list }}"
+      when: add_list is defined
 
-    - name: Gather existing UFW rules
-      shell: ufw status numbered | grep -E "^\[[[:space:]]*[[:digit:]]+]"
-      register: current_ufw_rules
-      changed_when: false
+    - name: Fetch data for deleting rules
+      uri:
+        url: https://stats.osbornetech.support/ansible/ufw/rules_to_delete.yaml
+        method: GET
+        return_content: yes
+      register: delete_data
+      ignore_errors: true
+      check_mode: no
 
-    - name: Extract rule numbers to delete
+    - name: Parse YAML data for deleting rules
       set_fact:
-        rules_to_delete: >-
-          {% set delete_list = [] %}
-          {% set allowed_nums = rule_list | map(attribute='rule_num') | map('string') | list %}
-          {% for line in current_ufw_rules.stdout_lines %}
-            {% if line is match('^\\[\\s*\\d+\\]') %}
-              {% set num = line.split('[')[1].split(']')[0]|trim %}
-              {% if num not in allowed_nums %}
-                {{ delete_list.append(num) or '' }}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-          {{ delete_list }}
-      when: rule_list is defined
+        delete_list: "{{ delete_data.content | from_yaml }}"
+      when: delete_data.content is defined and delete_data.status == 200
+      ignore_errors: true
 
-    - name: Debug rules to delete
-      debug:
-        var: rules_to_delete
+    - name: Check if deleting rules YAML parsing failed or URL fetch failed
+      fail:
+        msg: "Failed to parse YAML data or fetch URL for deleting rules. Check 'delete_data' for details."
+      when: delete_list is undefined or delete_data.failed or delete_data.status != 200
 
     - name: Remove outdated UFW rules
       ufw:
         delete: yes
         rule_num: "{{ item }}"
-      loop: "{{ rules_to_delete }}"
-      when: rules_to_delete | length > 0
+      loop: "{{ delete_list }}"
+      when: delete_list is defined and delete_list | length > 0
