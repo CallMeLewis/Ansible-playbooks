@@ -3,7 +3,7 @@
   tasks:
     - name: Fetch rule data from URL
       uri:
-        url: http://10.0.0.12:8083/ansible/ufw/ufw_rules.yaml
+        url: https://ufw.darkzone.dev/ansible/ufw/ufw_rules.yaml
         method: GET
         return_content: yes
       register: rule_data
